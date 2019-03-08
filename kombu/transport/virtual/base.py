@@ -462,9 +462,9 @@ class Channel(AbstractChannel, base.StdChannel):
         self.closed = False
 
         # instantiate exchange types
-        self.exchange_types = dict(
-            (typ, cls(self)) for typ, cls in items(self.exchange_types)
-        )
+        self.exchange_types = {
+            typ: cls(self) for typ, cls in items(self.exchange_types)
+        }
 
         try:
             self.channel_id = self.connection._avail_channel_ids.pop()
@@ -898,7 +898,7 @@ class Transport(base.Transport):
     channel_max = 65535
 
     implements = base.Transport.implements.extend(
-        async=False,
+        asynchronous=False,
         exchange_type=frozenset(['direct', 'topic']),
         heartbeats=False,
     )
@@ -977,7 +977,7 @@ class Transport(base.Transport):
         try:
             callback = self._callbacks[queue]
         except KeyError:
-            logger.warn(W_NO_CONSUMERS, queue)
+            logger.warning(W_NO_CONSUMERS, queue)
             self._reject_inbound_message(message)
         else:
             callback(message)

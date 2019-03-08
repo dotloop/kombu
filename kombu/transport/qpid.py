@@ -24,8 +24,8 @@ or to install the requirements manually:
     tested and works with with Python 2.7.
 
 .. _`Qpid`: https://qpid.apache.org/
-.. _`qpid-python`: https://pypi.python.org/pypi/qpid-python/
-.. _`qpid-tools`: https://pypi.python.org/pypi/qpid-tools/
+.. _`qpid-python`: https://pypi.org/project/qpid-python/
+.. _`qpid-tools`: https://pypi.org/project/qpid-tools/
 
 Authentication
 ==============
@@ -116,7 +116,7 @@ except ImportError:  # pragma: no cover
     qpid = None
 
 
-from kombu.five import Empty, items, monotonic
+from kombu.five import Empty, items, monotonic, PY3
 from kombu.log import get_logger
 from kombu.transport.virtual import Base64, Message
 from kombu.transport import base
@@ -129,8 +129,6 @@ OBJECT_ALREADY_EXISTS_STRING = 'object already exists'
 
 VERSION = (1, 0, 0)
 __version__ = '.'.join(map(str, VERSION))
-
-PY3 = sys.version_info[0] == 3
 
 
 def dependency_is_none(dependency):
@@ -1442,8 +1440,8 @@ class Transport(base.Transport):
         """Verify that the runtime environment is acceptable.
 
         This method is called as part of __init__ and raises a RuntimeError
-        in Python3 or PyPi environments. This module is not compatible with
-        Python3 or PyPi. The RuntimeError identifies this to the user up
+        in Python3 or PyPI environments. This module is not compatible with
+        Python3 or PyPI. The RuntimeError identifies this to the user up
         front along with suggesting Python 2.6+ be used instead.
 
         This method also checks that the dependencies qpidtoollibs and
@@ -1530,7 +1528,7 @@ class Transport(base.Transport):
         :type connection: kombu.transport.qpid.Connection
         :param loop: The asynchronous loop object that contains epoll like
             functionality.
-        :type loop: kombu.async.Hub
+        :type loop: kombu.asynchronous.Hub
 
         """
         os.read(self.r, 1)
@@ -1562,7 +1560,7 @@ class Transport(base.Transport):
             this Transport.
         :type connection: kombu.transport.qpid.Connection
         :param loop: A reference to the external loop.
-        :type loop: kombu.async.hub.Hub
+        :type loop: kombu.asynchronous.hub.Hub
 
         """
         self.r, self._w = os.pipe()

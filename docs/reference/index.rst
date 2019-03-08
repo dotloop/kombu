@@ -10,6 +10,7 @@
 
     kombu
     kombu.common
+    kombu.matcher
     kombu.mixins
     kombu.simple
     kombu.clocks
@@ -23,21 +24,23 @@
     kombu.pools
     kombu.abstract
     kombu.resource
-    kombu.async
-    kombu.async.hub
-    kombu.async.semaphore
-    kombu.async.timer
-    kombu.async.debug
-    kombu.async.http
-    kombu.async.http.base
-    kombu.async.http.curl
-    kombu.async.aws
-    kombu.async.aws.connection
-    kombu.async.aws.sqs
-    kombu.async.aws.sqs.connection
-    kombu.async.aws.sqs.message
-    kombu.async.aws.sqs.queue
+    kombu.asynchronous
+    kombu.asynchronous.hub
+    kombu.asynchronous.semaphore
+    kombu.asynchronous.timer
+    kombu.asynchronous.debug
+    kombu.asynchronous.http
+    kombu.asynchronous.http.base
+    kombu.asynchronous.http.curl
+    kombu.asynchronous.aws
+    kombu.asynchronous.aws.connection
+    kombu.asynchronous.aws.sqs
+    kombu.asynchronous.aws.sqs.connection
+    kombu.asynchronous.aws.sqs.message
+    kombu.asynchronous.aws.sqs.queue
     kombu.transport
+    kombu.transport.azurestoragequeues
+    kombu.transport.azureservicebus
     kombu.transport.pyamqp
     kombu.transport.librabbitmq
     kombu.transport.qpid

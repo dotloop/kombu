@@ -22,6 +22,7 @@ from kombu.utils.objects import cached_property
 from kombu.utils.scheduling import cycle_by_name
 from kombu.utils.url import _parse_url
 from kombu.utils.uuid import uuid
+from kombu.utils.compat import _detect_environment
 
 from . import virtual
 
@@ -145,8 +146,15 @@ class QoS(virtual.QoS):
     def append(self, message, delivery_tag):
         delivery = message.delivery_info
         EX, RK = delivery['exchange'], delivery['routing_key']
+        # TODO: Remove this once we soley on Redis-py 3.0.0+
+        if redis.VERSION[0] >= 3:
+            # Redis-py changed the format of zadd args in v3.0.0
+            zadd_args = [{delivery_tag: time()}]
+        else:
+            zadd_args = [time(), delivery_tag]
+
         with self.pipe_or_acquire() as pipe:
-            pipe.zadd(self.unacked_index_key, time(), delivery_tag) \
+            pipe.zadd(self.unacked_index_key, *zadd_args) \
                 .hset(self.unacked_key, delivery_tag,
                       dumps([message._raw, EX, RK])) \
                 .execute()
@@ -189,6 +197,9 @@ class QoS(virtual.QoS):
             try:
                 with Mutex(client, self.unacked_mutex_key,
                            self.unacked_mutex_expire):
+                    env = _detect_environment()
+                    if env == 'gevent':
+                        ceil = time()
                     visible = client.zrevrangebyscore(
                         self.unacked_index_key, ceil, 0,
                         start=num and start, num=num, withscores=True)
@@ -871,7 +882,7 @@ class Channel(virtual.Channel):
                                socket_keepalive_options=None, **params):
         return params
 
-    def _connparams(self, async=False):
+    def _connparams(self, asynchronous=False):
         conninfo = self.connection.client
         connparams = {
             'host': conninfo.hostname or '127.0.0.1',
@@ -917,7 +928,7 @@ class Channel(virtual.Channel):
             self.connection_class
         )
 
-        if async:
+        if asynchronous:
             class Connection(connection_cls):
                 def disconnect(self):
                     super(Connection, self).disconnect()
@@ -928,20 +939,20 @@ class Channel(virtual.Channel):
 
         return connparams
 
-    def _create_client(self, async=False):
-        if async:
+    def _create_client(self, asynchronous=False):
+        if asynchronous:
             return self.Client(connection_pool=self.async_pool)
         return self.Client(connection_pool=self.pool)
 
-    def _get_pool(self, async=False):
-        params = self._connparams(async=async)
+    def _get_pool(self, asynchronous=False):
+        params = self._connparams(asynchronous=asynchronous)
         self.keyprefix_fanout = self.keyprefix_fanout.format(db=params['db'])
         return redis.ConnectionPool(**params)
 
     def _get_client(self):
-        if redis.VERSION < (2, 10, 5):
+        if redis.VERSION < (3, 2, 0):
             raise VersionMismatch(
-                'Redis transport requires redis-py versions 2.10.5 or later. '
+                'Redis transport requires redis-py versions 3.2.0 or later. '
                 'You have {0.__version__}'.format(redis))
         return redis.StrictRedis
 
@@ -961,18 +972,18 @@ class Channel(virtual.Channel):
     @property
     def async_pool(self):
         if self._async_pool is None:
-            self._async_pool = self._get_pool(async=True)
+            self._async_pool = self._get_pool(asynchronous=True)
         return self._async_pool
 
     @cached_property
     def client(self):
         """Client used to publish messages, BRPOP etc."""
-        return self._create_client(async=True)
+        return self._create_client(asynchronous=True)
 
     @cached_property
     def subclient(self):
         """Pub/Sub connection used to consume fanout queues."""
-        client = self._create_client(async=True)
+        client = self._create_client(asynchronous=True)
         return client.pubsub()
 
     def _update_queue_cycle(self):
@@ -1000,7 +1011,7 @@ class Transport(virtual.Transport):
     driver_name = 'redis'
 
     implements = virtual.Transport.implements.extend(
-        async=True,
+        asynchronous=True,
         exchange_type=frozenset(['direct', 'topic', 'fanout'])
     )
 
@@ -1051,9 +1062,7 @@ class SentinelChannel(Channel):
 
     sentinel://0.0.0.0:26379;sentinel://0.0.0.0:26380/...
 
-    where each sentinel is separated by a `;`.  Multiple sentinels are handled
-    by :class:`kombu.Connection` constructor, and placed in the alternative
-    list of servers to connect to in case of connection failure.
+    where each sentinel is separated by a `;`.
 
     Other arguments for the sentinel should come from the transport options
     (see :method:`Celery.connection` which is in charge of creating the
@@ -1070,18 +1079,28 @@ class SentinelChannel(Channel):
 
     connection_class = sentinel.SentinelManagedConnection if sentinel else None
 
-    def _sentinel_managed_pool(self, async=False):
-        connparams = self._connparams(async)
+    def _sentinel_managed_pool(self, asynchronous=False):
+        connparams = self._connparams(asynchronous)
 
         additional_params = connparams.copy()
 
         additional_params.pop('host', None)
         additional_params.pop('port', None)
 
+        sentinels = []
+        for url in self.connection.client.alt:
+            url = _parse_url(url)
+            if url.scheme == 'sentinel':
+                sentinels.append((url.hostname, url.port))
+
+        # Fallback for when only one sentinel is provided.
+        if not sentinels:
+            sentinels.append((connparams['host'], connparams['port']))
+
         sentinel_inst = sentinel.Sentinel(
-            [(connparams['host'], connparams['port'])],
+            sentinels,
             min_other_sentinels=getattr(self, 'min_other_sentinels', 0),
-            sentinel_kwargs=getattr(self, 'sentinel_kwargs', {}),
+            sentinel_kwargs=getattr(self, 'sentinel_kwargs', None),
             **additional_params)
 
         master_name = getattr(self, 'master_name', None)
@@ -1091,8 +1110,8 @@ class SentinelChannel(Channel):
             self.Client,
         ).connection_pool
 
-    def _get_pool(self, async=False):
-        return self._sentinel_managed_pool(async)
+    def _get_pool(self, asynchronous=False):
+        return self._sentinel_managed_pool(asynchronous)
 
 
 class SentinelTransport(Transport):

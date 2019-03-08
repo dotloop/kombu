@@ -4,9 +4,9 @@
 
 |build-status| |coverage| |license| |wheel| |pyversion| |pyimp|
 
-:Version: 4.1.0
-:Web: http://kombu.me/
-:Download: https://pypi.python.org/pypi/kombu/
+:Version: 4.4.0
+:Documentation: https://kombu.readthedocs.io/
+:Download: https://pypi.org/project/kombu/
 :Source: https://github.com/celery/kombu/
 :Keywords: messaging, amqp, rabbitmq, redis, mongodb, python, queue
 
@@ -64,17 +64,17 @@ and the `Wikipedia article about AMQP`_.
 
 .. _`RabbitMQ`: https://www.rabbitmq.com/
 .. _`AMQP`: https://amqp.org
-.. _`py-amqp`: https://pypi.python.org/pypi/amqp/
-.. _`qpid-python`: https://pypi.python.org/pypi/qpid-python/
+.. _`py-amqp`: https://pypi.org/project/amqp/
+.. _`qpid-python`: https://pypi.org/project/qpid-python/
 .. _`Redis`: https://redis.io
 .. _`Amazon SQS`: https://aws.amazon.com/sqs/
 .. _`Zookeeper`: https://zookeeper.apache.org/
 .. _`Rabbits and warrens`: http://web.archive.org/web/20160323134044/http://blogs.digitar.com/jjww/2009/01/rabbits-and-warrens/
 .. _`amqplib`: https://barryp.org/software/py-amqplib/
 .. _`Wikipedia article about AMQP`: https://en.wikipedia.org/wiki/AMQP
-.. _`carrot`: https://pypi.python.org/pypi/carrot/
-.. _`librabbitmq`: https://pypi.python.org/pypi/librabbitmq
-.. _`Pyro`: https://pythonhosting.org/Pyro4
+.. _`carrot`: https://pypi.org/project/carrot/
+.. _`librabbitmq`: https://pypi.org/project/librabbitmq/
+.. _`Pyro`: https://pyro4.readthedocs.io/
 .. _`SoftLayer MQ`: https://sldn.softlayer.com/reference/messagequeueapi
 
 .. _transport-comparison:
@@ -100,6 +100,8 @@ Transport Comparison
 | *in-memory*   | Virtual  | Yes        | Yes [#f1]_ | No            | No           | No                    |
 +---------------+----------+------------+------------+---------------+--------------+-----------------------+
 | *SLMQ*        | Virtual  | Yes        | Yes [#f1]_ | No            | No           | No                    |
++---------------+----------+------------+------------+---------------+--------------+-----------------------+
+| *Pyro*        | Virtual  | Yes        | Yes [#f1]_ | No            | No           | No                    |
 +---------------+----------+------------+------------+---------------+--------------+-----------------------+
 
 
@@ -308,9 +310,9 @@ Getting Help
 Mailing list
 ------------
 
-Join the `carrot-users`_ mailing list.
+Join the `celery-users`_ mailing list.
 
-.. _`carrot-users`: https://groups.google.com/group/carrot-users/
+.. _`celery-users`: https://groups.google.com/group/celery-users/
 
 Bug tracker
 ===========
@@ -346,14 +348,13 @@ file in the top distribution directory for the full license text.
 
 .. |wheel| image:: https://img.shields.io/pypi/wheel/kombu.svg
     :alt: Kombu can be installed via wheel
-    :target: https://pypi.python.org/pypi/kombu/
+    :target: https://pypi.org/project/kombu/
 
 .. |pyversion| image:: https://img.shields.io/pypi/pyversions/kombu.svg
     :alt: Supported Python versions.
-    :target: https://pypi.python.org/pypi/kombu/
+    :target: https://pypi.org/project/kombu/
 
 .. |pyimp| image:: https://img.shields.io/pypi/implementation/kombu.svg
     :alt: Support Python implementations.
-    :target: https://pypi.python.org/pypi/kombu/
+    :target: https://pypi.org/project/kombu/
 --
-

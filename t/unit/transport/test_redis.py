@@ -75,8 +75,15 @@ class Client(object):
     def sadd(self, key, member, *args):
         self.sets[key].add(member)
 
-    def zadd(self, key, score1, member1, *args):
-        self.sets[key].add(member1)
+    def zadd(self, key, *args):
+        if redis.redis.VERSION[0] >= 3:
+            (mapping,) = args
+            for item in mapping:
+                self.sets[key].add(item)
+        else:
+            # TODO: remove me when we drop support for Redis-py v2
+            (score1, member1) = args
+            self.sets[key].add(member1)
 
     def smembers(self, key):
         return self.sets.get(key, set())
@@ -211,7 +218,7 @@ class Channel(redis.Channel):
     def _get_client(self):
         return Client
 
-    def _get_pool(self, async=False):
+    def _get_pool(self, asynchronous=False):
         return Mock()
 
     def _get_response_error(self):
@@ -819,6 +826,15 @@ class test_Channel:
                     redis.redis.SSLConnection,
                 )
 
+    def test_rediss_connection(self):
+        with patch('kombu.transport.redis.Channel._create_client'):
+            with Connection('rediss://') as conn:
+                connparams = conn.default_channel._connparams()
+                assert issubclass(
+                    connparams['connection_class'],
+                    redis.redis.SSLConnection,
+                )
+
 
 @skip.unless_module('redis')
 class test_Redis:
@@ -831,7 +847,21 @@ class test_Redis:
     def teardown(self):
         self.connection.close()
 
-    def test_publish__get(self):
+    @mock.replace_module_value(redis.redis, 'VERSION', [3, 0, 0])
+    def test_publish__get_redispyv3(self):
+        channel = self.connection.channel()
+        producer = Producer(channel, self.exchange, routing_key='test_Redis')
+        self.queue(channel).declare()
+
+        producer.publish({'hello': 'world'})
+
+        assert self.queue(channel).get().payload == {'hello': 'world'}
+        assert self.queue(channel).get() is None
+        assert self.queue(channel).get() is None
+        assert self.queue(channel).get() is None
+
+    @mock.replace_module_value(redis.redis, 'VERSION', [2, 5, 10])
+    def test_publish__get_redispyv2(self):
         channel = self.connection.channel()
         producer = Producer(channel, self.exchange, routing_key='test_Redis')
         self.queue(channel).declare()
@@ -1025,6 +1055,25 @@ class test_MultiChannelPoller:
         chan1.qos.restore_visible.assert_called_with(
             num=chan1.unacked_restore_limit,
         )
+
+    def test_restore_visible_with_gevent(self):
+        with patch('kombu.transport.redis.time') as time:
+            with patch('kombu.transport.redis._detect_environment') as env:
+                timeout = 3600
+                time.return_value = timeout
+                env.return_value = 'gevent'
+                chan1 = Mock(name='chan1')
+                redis_ctx_mock = Mock()
+                redis_client_mock = Mock(name='redis_client_mock')
+                redis_ctx_mock.__exit__ = Mock()
+                redis_ctx_mock.__enter__ = Mock(return_value=redis_client_mock)
+                chan1.conn_or_acquire.return_value = redis_ctx_mock
+                qos = redis.QoS(chan1)
+                qos.visibility_timeout = timeout
+                qos.restore_visible()
+                redis_client_mock.zrevrangebyscore\
+                    .assert_called_with(chan1.unacked_index_key, timeout, 0,
+                                        start=0, num=10, withscores=True)
 
     def test_handle_event(self):
         p = self.Poller()
@@ -1295,14 +1344,49 @@ class test_RedisSentinel:
     def test_getting_master_from_sentinel(self):
         with patch('redis.sentinel.Sentinel') as patched:
             connection = Connection(
-                'sentinel://localhost:65534/',
+                'sentinel://localhost:65532/;'
+                'sentinel://user@localhost:65533/;'
+                'sentinel://:password@localhost:65534/;'
+                'sentinel://user:password@localhost:65535/;',
                 transport_options={
                     'master_name': 'not_important',
                 },
             )
 
             connection.channel()
-            assert patched
+            patched.assert_called_once_with(
+                [
+                    (u'localhost', 65532),
+                    (u'localhost', 65533),
+                    (u'localhost', 65534),
+                    (u'localhost', 65535),
+                ],
+                connection_class=mock.ANY, db=0, max_connections=10,
+                min_other_sentinels=0, password=None, sentinel_kwargs=None,
+                socket_connect_timeout=None, socket_keepalive=None,
+                socket_keepalive_options=None, socket_timeout=None)
+
+            master_for = patched.return_value.master_for
+            master_for.assert_called()
+            master_for.assert_called_with('not_important', ANY)
+            master_for().connection_pool.get_connection.assert_called()
+
+    def test_getting_master_from_sentinel_single_node(self):
+        with patch('redis.sentinel.Sentinel') as patched:
+            connection = Connection(
+                'sentinel://localhost:65532/',
+                transport_options={
+                    'master_name': 'not_important',
+                },
+            )
+
+            connection.channel()
+            patched.assert_called_once_with(
+                [(u'localhost', 65532)],
+                connection_class=mock.ANY, db=0, max_connections=10,
+                min_other_sentinels=0, password=None, sentinel_kwargs=None,
+                socket_connect_timeout=None, socket_keepalive=None,
+                socket_keepalive_options=None, socket_timeout=None)
 
             master_for = patched.return_value.master_for
             master_for.assert_called()
